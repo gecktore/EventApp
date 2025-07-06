@@ -1,0 +1,97 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:event_app_3/screens/event_detail_screen.dart'; // Убедитесь, что путь правильный
+
+class AccessCodeScreen extends StatefulWidget {
+  const AccessCodeScreen({Key? key}) : super(key: key);
+
+  @override
+  _AccessCodeScreenState createState() => _AccessCodeScreenState();
+}
+
+class _AccessCodeScreenState extends State<AccessCodeScreen> {
+  final TextEditingController _accessCodeController = TextEditingController();
+  String? _errorMessage;
+
+  Future<void> _checkAccessCode() async {
+    String accessCode = _accessCodeController.text.trim();
+
+    if (accessCode.isEmpty) {
+      setState(() {
+        _errorMessage = 'Введите код доступа';
+      });
+      return;
+    }
+
+    try {
+      // Выполняем запрос к коллекции events, чтобы найти документ с соответствующим access_code
+      QuerySnapshot querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('events')
+              .where('access_code', isEqualTo: accessCode)
+              .get();
+
+      print("Entered Access Code: $accessCode");
+      print("Number of documents found: ${querySnapshot.docs.length}");
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // Код доступа найден, переходим к первому найденному мероприятию
+        String eventId =
+            querySnapshot
+                .docs
+                .first
+                .id; // Получаем ID первого найденного мероприятия
+        print("Found Event ID: $eventId");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EventDetailScreen(eventId: eventId),
+          ),
+        );
+      } else {
+        setState(() {
+          _errorMessage = 'Неверный код доступа';
+        });
+      }
+    } catch (e) {
+      print("Error checking access code: $e");
+      setState(() {
+        _errorMessage = 'Ошибка при проверке кода доступа';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _accessCodeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Введите код доступа')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextField(
+              controller: _accessCodeController,
+              decoration: InputDecoration(
+                labelText: 'Код доступа',
+                errorText: _errorMessage,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _checkAccessCode,
+              child: const Text('Проверить код'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
